@@ -2,31 +2,30 @@
 #include <unistd.h>
 #include <termios.h>
 #include <fcntl.h>
-#include <cstdlib> // For rand()
+#include <cstdlib> 
 
 using namespace std;
-
-// Global variables
+// global Variables
 int score;
-const int width = 30, height = 15; // Adjusted width and height
+const int width = 30, height = 15; 
 bool gameover;
 int x, y, food_x, food_y;
+int x_body[100], y_body[100], len_body = 0;
 namespace game {
     enum direction { stop, left, right, top, down };
 }   
 game::direction dir;
 
-// Save the original terminal settings
-struct termios orig_termios;
-void saveOriginalSettings() {
-    tcgetattr(STDIN_FILENO, &orig_termios);
-}
 
-void restoreOriginalSettings() {
-    tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
-}
+// struct termios orig_termios;
+// void saveOriginalSettings() {
+//     tcgetattr(STDIN_FILENO, &orig_termios);
+// }
 
-// Function to set non-blocking input
+// void restoreOriginalSettings() {
+//     tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
+// }
+
 void setNonBlocking(bool enable) {
     struct termios ttystate;
     tcgetattr(STDIN_FILENO, &ttystate);
@@ -43,7 +42,6 @@ void setNonBlocking(bool enable) {
     tcsetattr(STDIN_FILENO, TCSANOW, &ttystate);
 }
 
-// Function to check for keypress
 int _kbhit() {
     struct timeval tv = {0, 0};
     fd_set fds;
@@ -67,7 +65,6 @@ void arena() {
     for (int i = 0; i < width; i++)
         cout << "#";
     cout << endl;
-
     for (int i = 0; i < height - 1; i++) {
         for (int j = 0; j < width; j++) {
             if (j == 0 || j == width - 1)
@@ -76,15 +73,26 @@ void arena() {
                 cout << "O";
             else if (food_y == i && food_x == j)
                 cout << "F";
-            else
-                cout << " ";
+            else{
+                bool body_print = false;
+                for ( int k = 0; k < len_body; k++)
+                {
+                    if(x_body[k] == j && y_body[k] == i){
+                        cout<<"o";
+                        body_print = true;
+                    }
+                }
+                if(!body_print)
+                    cout<< " ";
+
+            }
         }
         cout << endl;
     }
 
     for (int i = 0; i < width; i++)
         cout << "#";
-    cout << endl;
+    cout << endl<<"Score: "<<score<<endl;
 }
 
 void input() {
@@ -111,6 +119,23 @@ void input() {
 }
 
 void logic() {
+
+    int prevx = x_body[0];
+    int prevy = y_body[0];
+    x_body[0] = x;
+    y_body[0] = y;
+    int prev2x, prev2y;
+    for(int i = 1;i < len_body;i++){
+        prev2x = x_body[i];
+        prev2y = y_body[i];
+
+        x_body[i] = prevx;
+        y_body[i] = prevy;
+
+        prevx = prev2x;
+        prevy = prev2y;
+
+    }
     switch (dir) {
         case game::left:
             x--;
@@ -126,21 +151,29 @@ void logic() {
             break;
     }
 
-    // Check for boundaries
-    if (x >= width - 1 || x < 1 || y >= height - 1 || y < -1) {
-        gameover = true;
-    }
+    if( x >= width - 1)
+        x = 1;
+    else if( x < 1)
+        x = width - 1;
+    else if( y < 0)
+        y = height - 1;
+    else if( y >= height - 1)
+        y = 0;
 
-    // Check if the snake eats the food
+    for(int i = 1; i < len_body; i++)
+        if(x_body[i] == x && y_body[i] == y)
+            gameover = true;
+
     if (x == food_x && y == food_y) {
-        score += 10;
+        score ++;
         food_x = rand() % (width - 2) + 1;
         food_y = rand() % (height - 2) + 1;
+        len_body++;
     }
 }
 
 int main() {
-    saveOriginalSettings();
+    // saveOriginalSettings();
     setNonBlocking(true);
     init();
 
@@ -155,7 +188,7 @@ int main() {
     }
 
     setNonBlocking(false);
-    restoreOriginalSettings(); // Restore original terminal settings
+    // restoreOriginalSettings(); 
     cout << "Game Over! Your score: " << score << endl;
     return 0;
 }
